@@ -27,6 +27,7 @@ pulse/
 
 **Plan**: Freeze Perch EfficientNetV2 backbone and train a classification head for murmur detection (linear probe + optional fine-tuning) on CirCor dataset.
 
+> [!IMPORTANT]
 **Blocker**: No public Perch EfficientNetV2 JAX/FLAX checkpoint available. Need access to pretrained weights to proceed with transfer learning.
 
 Potential training command once checkpoints are available:
