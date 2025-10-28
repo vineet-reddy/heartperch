@@ -23,6 +23,7 @@ from typing import Callable, Sequence
 from absl import logging
 from chirp import path_utils
 from chirp.models import output
+from flax import traverse_util
 from clu import checkpoint
 from clu import metrics as clu_metrics
 import flax
@@ -369,3 +370,75 @@ def taxonomy_loss(
         for key in TAXONOMY_KEYS
     )
   return losses  # pytype: disable=bad-return-type  # jax-ndarray
+
+
+def _encoder_mask_from_params(params):
+  """Return a PyTree bool mask selecting the 'encoder' subtree in params.
+
+  The mask is True for leaves under top-level key 'encoder', else False.
+  """
+  flat = traverse_util.flatten_dict(params, keep_empty_nodes=True)
+  enc_mask_flat = {k: (len(k) > 0 and k[0] == 'encoder') for k in flat.keys()}
+  return traverse_util.unflatten_dict(enc_mask_flat)
+
+
+def _invert_mask(mask_tree):
+  return jax.tree.map(lambda b: jnp.array(False) if b is None else ~b, mask_tree)
+
+
+def build_frozen_encoder_optimizer(
+    head_learning_rate: float = 1e-3,
+    head_weight_decay: float = 1e-4,
+):
+  """Create an optimizer that freezes the encoder and trains heads.
+
+  Args:
+    head_learning_rate: Learning rate for head parameters.
+    head_weight_decay: Weight decay for head parameters.
+
+  Returns:
+    An optax GradientTransformation that zeroes encoder updates and applies
+    AdamW to non-encoder parameters.
+  """
+  head_opt = optax.adamw(learning_rate=head_learning_rate, weight_decay=head_weight_decay)
+
+  def enc_mask_fn(params):
+    return _encoder_mask_from_params(params)
+
+  def head_mask_fn(params):
+    return _invert_mask(enc_mask_fn(params))
+
+  return optax.chain(
+      optax.masked(optax.set_to_zero(), enc_mask_fn),
+      optax.masked(head_opt, head_mask_fn),
+  )
+
+
+def build_partial_ft_optimizer(
+    head_learning_rate: float = 1e-3,
+    encoder_learning_rate: float = 1e-5,
+    head_weight_decay: float = 1e-4,
+):
+  """Create an optimizer that trains both head and encoder with different LRs.
+
+  Args:
+    head_learning_rate: LR for head parameters.
+    encoder_learning_rate: LR for encoder parameters.
+    head_weight_decay: Weight decay for head parameters.
+
+  Returns:
+    An optax GradientTransformation masking encoder vs head params.
+  """
+  head_opt = optax.adamw(learning_rate=head_learning_rate, weight_decay=head_weight_decay)
+  enc_opt = optax.adamw(learning_rate=encoder_learning_rate, weight_decay=0.0)
+
+  def enc_mask_fn(params):
+    return _encoder_mask_from_params(params)
+
+  def head_mask_fn(params):
+    return _invert_mask(enc_mask_fn(params))
+
+  return optax.chain(
+      optax.masked(enc_opt, enc_mask_fn),
+      optax.masked(head_opt, head_mask_fn),
+  )

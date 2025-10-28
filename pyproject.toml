@@ -46,6 +46,10 @@ ratelimiter = "^1.2.0.post0"
 # Quantization-aware training in Jax.
 aqtp = "^0.5.0"
 
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.2"
+
 [build-system]
 requires = ["poetry-core>=1.5.0"]
 build-backend = "poetry.core.masonry.api"
