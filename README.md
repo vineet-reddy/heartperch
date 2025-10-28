@@ -1,5 +1,9 @@
 # Perch
 
+> [!IMPORTANT]
+> **For heart-specific data and HeartPerch**: See the [`pulse/`](pulse/) directory for transfer learning experiments applying Perch to cardiac sound analysis.
+
+
 ![CI](https://github.com/google-research/perch/actions/workflows/ci.yml/badge.svg)
 
 A bioacoustics research project.
