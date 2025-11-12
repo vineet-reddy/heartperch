@@ -35,12 +35,15 @@ from chirp.preprocessing import pipeline
 from chirp.train import train_utils
 from flax import linen as nn
 import optax
+from pulse.configs import class_list_utils
+from pulse.preprocessing import heart_ops
 
 
 def get_globals() -> dict[str, Any]:
   return {
       "audio_utils": audio_utils,
       "callbacks": callbacks,
+      "class_list_utils": class_list_utils,
       "config_utils": config_utils,
       "conformer": conformer,
       "efficientnet": efficientnet,
@@ -57,4 +60,5 @@ def get_globals() -> dict[str, Any]:
       "soundstream_unet": soundstream_unet,
       "taxonomy_model": taxonomy_model,
       "train_utils": train_utils,
+      "heart_ops": heart_ops,
   }

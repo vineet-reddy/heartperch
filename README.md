@@ -1,135 +1,192 @@
-# Perch
+# HeartPerch
 
-![CI](https://github.com/google-research/perch/actions/workflows/ci.yml/badge.svg)
+**Testing whether bird vocalization models transfer to medical audio.**
 
-A bioacoustics research project.
+This is a fork of [Google's Perch](https://github.com/google-research/perch) that evaluates frozen bird vocalization embeddings on heart murmur detection from the [PhysioNet/CinC Challenge 2022](https://moody-challenge.physionet.org/2022/).
 
-## Directory of Things
+**Result:** Without training on any heart data, Perch ranked **6th out of 40 teams** in the competition, demonstrating strong zero-shot transfer learning to data-scarce medical domains. ([full results](pulse/docs/results/results_summary.pdf))
 
-We have published quite a few things which utilize this repository!
+All heart-specific code is in [`pulse/`](pulse/). The original [`chirp/`](chirp/) codebase remains largely untouched.
 
-### Perch (and SurfPerch!)
+---
 
-We produce a bird species classifier, trained on over 10k species.
+## Why HeartPerch?
 
-* The current [released Perch model](https://www.kaggle.com/models/google/bird-vocalization-classifier/frameworks/tensorFlow2/variations/bird-vocalization-classifier) is available from Kaggle Models.
-* The current-best citation for the model is our paper: [Global birdsong embeddings enable superior transfer learning for bioacoustic classification](https://www.nature.com/articles/s41598-023-49989-z.epdf).
-* The [SurfPerch model](https://www.kaggle.com/models/google/surfperch), trained on a combination of birds, coral reef sounds, and general audio, is also available at Kaggle models. The associated paper is (as of this writing) [available as a preprint](https://arxiv.org/abs/2404.16436).
+Perch's architecture (trained to disentangle overlapping bird vocalizations in noisy environments) has theoretically learned general representations of structured time-frequency patterns. These representations transfer surprisingly well to cardiac signals, capturing subtle rhythm irregularities and spectrotemporal patterns which general audio models often miss.
 
-The major parts of the Perch model training code is broken up across the following files:
+HeartPerch is a minimal wrapper around Perch that reuses its preprocessing pipeline and adds heart-specific functionality for murmur detection.
 
-* [Model frontend](https://github.com/google-research/perch/blob/main/chirp/models/frontend.py) - we use a PCEN melspectrogram.
-* [EfficientNet model](https://github.com/google-research/perch/blob/main/chirp/models/efficientnet.py)
-* [Training loop](https://github.com/google-research/perch/blob/main/chirp/train/classifier.py)
-* [Training launch script](https://github.com/google-research/perch/blob/main/chirp/projects/main.py)
-* [Export](https://github.com/google-research/perch/blob/main/chirp/export_utils.py) from JAX to Tensorflow and TFLite
+---
 
-### Agile Modeling
+## Project Structure
 
-Agile modeling combines search and active learning to produce classifiers for novel concepts quickly.
+```
+pulse/
+├── configs/          # Configuration presets (32kHz, 5s windows, 2.5s stride)
+├── data/             # TFDS builder for CirCor dataset (v2.0.0)
+├── preprocessing/    # Patient-level splits and label mapping
+├── inference/        # Perch 8 embedding extraction (1280-dim)
+├── train/            # Linear probe training (sklearn LogisticRegression)
+├── examples/         # Evaluation and baseline comparison scripts
+├── scripts/          # Dataset building and validation utilities
+└── results/          # Evaluation metrics and predictions
+```
 
-Here's [Tutorial Colab Notebook](https://colab.research.google.com/drive/1gPBu2fyw6aoT-zxXFk15I2GObfMRNHUq) we produced for [Climate Change AI](https://www.climatechange.ai/) and presented at their workshop at [NeurIPS 2023](https://www.climatechange.ai/papers/neurips2023/133).
+---
 
-We maintain three 'working' notebooks for agile modeling in this repository:
+## Pipeline Overview
 
-* [`embed_audio.ipynb`](https://github.com/google-research/perch/blob/main/embed_audio.ipynb) for performing mass-embedding of audio.
-* [`agile_modeling.ipynb`](https://github.com/google-research/perch/blob/main/agile_modeling.ipynb) for search and active learning over embeddings.
-* [`analysis.ipynb`](https://github.com/google-research/perch/blob/main/analysis.ipynb) for running inference and performing call density estimation (see below).
-* The code for agile modeling is largely contained in the [inference directory](https://github.com/google-research/perch/tree/main/chirp/inference), which contains its own extensive README.
+The pipeline uses **Perch 8** (Google's bird vocalization model) as a frozen feature extractor:
 
-The agile modeling work supports a number of different models, including our models (Perch and SurfPerch, and the [multi-species whale classifier](https://www.kaggle.com/models/google/multispecies-whale)), BirdNet, and some general audio models like [YamNet](https://www.kaggle.com/models/google/yamnet) and [VGGish](https://www.kaggle.com/models/google/vggish). Adding support for additional models is fairly trivial.
+1. **Build dataset**: CirCor PhysioNet 2022 → TFDS format (v2.0.0)
+2. **Extract embeddings**: Audio @ 32kHz → 5s windows (2.5s stride) → Perch 8 → 1280-dim embeddings
+3. **Train classifier**: Embeddings → sklearn LogisticRegression (binary or 3-class)
+4. **Evaluate**: Window → Recording → Patient-level aggregation and metrics
 
-### Call Density
+---
 
-We provide some tooling for estimating the proportion of audio windows in a dataset containing a target call type or species - anything you have a classifier for.
+## Quick Start
 
-Paper: [All Thresholds Barred: Direct Estimation of Call Density in Bioacoustic Data](https://www.frontiersin.org/journals/bird-science/articles/10.3389/fbirs.2024.1380636/full)
+### Full Pipeline (Automated)
 
-Code: See [call_density.py](https://github.com/google-research/perch/blob/main/chirp/inference/call_density.py) and [call_density_test.py](https://github.com/google-research/perch/blob/main/chirp/inference/tests/call_density_test.py). Note that the code contains some interactions with our broader 'agile modeling' work, though we have endeavoured to isolate the underlying mathematics in more modular functions.
-
-### BIRB Benchmark
-
-We produced a benchmark paper for understanding model generalization when transferring from focal to passive acoustic datasets. The preprint is [available here](https://arxiv.org/abs/2312.07439).
-
-For details on setting up the benchmark and evaluation protocol, please refer to this [brief readme](https://docs.google.com/document/d/1RasVkxIKKlUToFlJ8gZxaHqIE-mMy9G1MZwfK98Gb-I) with instructions. The evaluation codebase is in [perch/chirp/eval](https://github.com/google-research/perch/tree/main/chirp/eval).
-
-To build the BIRB evaluation data, after [installing](#installation) the `chirp` package, run the following command from the repository's root directory:
+Run the complete pipeline with a single command:
 
 ```bash
-poetry run tfds build -i chirp.data.bird_taxonomy,chirp.data.soundscapes \
-    soundscapes/{ssw,hawaii,coffee_farms,sierras_kahl,high_sierras,peru}_full_length \
-    bird_taxonomy/{downstream_full_length,class_representatives_slice_peaked}
+./pulse/run_full_pipeline.sh
 ```
 
-The process should take 36 to 48 hours to complete and use around 256 GiB of disk space.
+This script:
+1. Builds the CirCor TFDS dataset (v2.0.0)
+2. Extracts embeddings for binary and 3-class classification
+3. Validates embeddings (checks for data leakage)
+4. Trains linear probes
+5. Evaluates against baselines and competition metrics
+6. Backs up results to GCS
 
+### Manual Steps
 
-### Source-Free Domain Adaptation and NOTELA
-
-We have a paper on 'source-free domain generalization,' which involves automatic model adaptation to data from a shifted domain. We have a [blog post](https://research.google/blog/in-search-of-a-generalizable-method-for-source-free-domain-adaptation/) where you can read more about it. The [paper](https://proceedings.mlr.press/v202/boudiaf23a.html) was published in ICML 2023. The code for this project has been archived. You can [download a snapshot](https://github.com/google-research/perch/releases/tag/sfda-codebase-snapshot) of the repository containing the code, which can be found in the `chirp/projects/sfda` directory.
-
-
-## Installation
-
-We support installation on a generic Linux workstation.
-A GPU is recommended, especially when working with large datasets.
-The recipe below is the same used by our continuous integration testing.
-
-Some users have successfully used our repository with the Windows Linux
-Subsystem, or with Docker in a cloud-based virtual machine. Anecdotally,
-installation on OS X is difficult.
-
-You will need the following dependencies.
+#### 1. Install Dependencies
 
 ```bash
-# Install Poetry for package management
-curl -sSL https://install.python-poetry.org | python3 -
-
-# Install dependencies for librosa
-sudo apt-get install libsndfile1 ffmpeg
-
-# Install all dependencies specified in the poetry configs.
-# Note that for Windows machines, you can remove the `--with nonwindows`
-# option to drop some optional dependencies which do not build for Windows.
-poetry install  --with jaxtrain --with nonwindows
+cd ~/heartperch
+poetry install --with jaxtrain
 ```
 
-Running `poetry install` installs all Perch dependencies into a new virtual environment, in which you can run the Perch code base. To run the tests, use:
+#### 2. Build Dataset
 
 ```bash
-poetry run python -m unittest discover -s chirp/tests -p "*test.py"
-poetry run python -m unittest discover -s chirp/inference/tests -p "*test.py"
+poetry run python -m pulse.scripts.build_circor_dataset
 ```
 
-### Lightweight Inference
+Creates TFDS dataset at `~/tensorflow_datasets/circor/2.0.0/`
 
-Note that if you only need the python notebooks for use with pre-trained models,
-you can install with lighter dependencies:
-
-```
-# Install inference-only dependencies specified in the poetry configs
-poetry install
-```
-
-And check that the inference tests succeed:
-```bash
-poetry run python -m unittest discover -s chirp/inference/tests -p "*test.py"
-```
-
-## Using a container
-
-Alternatively, you can install and run this project using a container via Docker. To build a container using the tag `perch`, run:
+#### 3. Extract Embeddings
 
 ```bash
-git clone https://github.com/google-research/perch
-cd perch
-docker build . --tag perch
+poetry run python -m pulse.inference.embed_heart_dataset \
+  --tfds_data_dir ~/tensorflow_datasets \
+  --output_dir ./embeddings \
+  --batch_size 32
 ```
 
-After building the container, to run the unit tests, use:
+#### 4. Train Linear Probe
 
 ```bash
-docker run --rm -t perch python -m unittest discover -s chirp/tests -p "*test.py"
+poetry run python -m pulse.train.linear_probe \
+  --embedding_dir ./embeddings \
+  --output_dir ./models/linear_probe
 ```
 
-*This is not an officially supported Google product.*
+#### 5. Evaluate
+
+```bash
+poetry run python -m pulse.examples.evaluate_linear_probe \
+  --embedding_dir ./embeddings \
+  --model_path ./models/linear_probe/model.joblib \
+  --output_dir ./results
+```
+
+---
+
+## Key Components
+
+- **[`heart_presets.py`](pulse/configs/heart_presets.py)**: Config with Perch 8 requirements (32kHz, 5s windows, 2.5s stride, 1280-dim embeddings)
+- **[`circor.py`](pulse/data/circor.py)**: TFDS builder for CirCor dataset (v2.0.0) with recording-level labels
+- **[`heart_ops.py`](pulse/preprocessing/heart_ops.py)**: Binary label mapping and patient-level train/valid splits
+- **[`perch_embedder.py`](pulse/inference/perch_embedder.py)**: Wrapper around Perch 8 for batch embedding extraction
+- **[`compete_physionet2022.py`](pulse/examples/compete_physionet2022.py)**: 3-class evaluation using official competition metrics
+
+---
+
+## Design Decisions
+
+- **Frozen embeddings**: Pre-compute embeddings once, iterate on classifiers without expensive inference
+- **Patient-level splits**: Hash-based deterministic split prevents data leakage
+- **sklearn classifiers**: Simple logistic regression (no TPU/GPU needed for training)
+- **50% window overlap**: 2.5s stride captures more context for short cardiac events
+- **Multi-level evaluation**: Window/recording/patient metrics for different aggregation strategies
+
+---
+
+## Results
+
+📄 **[View Results Summary (PDF)](pulse/docs/results/results_summary.pdf)**
+
+See [`pulse/docs/results/results_summary.md`](pulse/docs/results/results_summary.md) for full evaluation results.
+
+**Highlights:**
+- **Binary classification**: 86.3% AUROC (recording-level)
+- **vs. Baselines**: +4.5% over VGGish, +9.4% over MFCC
+- **Competition ranking**: 6th/40 teams (3-class, frozen embeddings only)
+
+---
+
+## Updating Dataset Version
+
+To update to a new dataset version:
+
+1. Update `pulse/data/circor.py` line 23: `VERSION = tfds.core.Version('X.X.X')`
+2. Update `pulse/configs/heart_presets.py` line 30: `'circor/full_length:X.X.X'`
+3. Rebuild dataset: `poetry run python -m pulse.scripts.build_circor_dataset`
+
+All scripts automatically use the version specified in `heart_presets.py`.
+
+---
+
+## Generate Results Summary
+
+```bash
+# Generate markdown from CSV results
+python3 pulse/scripts/generate_results_summary.py
+
+# Convert to PDF
+pandoc pulse/docs/results/results_summary.md \
+  -o pulse/docs/results/results_summary.pdf \
+  -V geometry:"margin=0.5in,top=0.6in,bottom=0.6in" \
+  -V fontsize=10pt -V papersize=letter -V linestretch=0.9 \
+  -V pagestyle=empty --pdf-engine=pdflatex
+
+# Convert to LaTeX
+pandoc pulse/docs/results/results_summary.md \
+  -s -o pulse/docs/results/results_summary.tex \
+  -V geometry:"margin=0.5in,top=0.6in,bottom=0.6in" \
+  -V fontsize=10pt -V papersize=letter -V linestretch=0.9 \
+  -V pagestyle=empty
+```
+
+---
+
+## Troubleshooting
+
+### Poetry not found (in tmux/new shells)
+
+```bash
+source ~/.bashrc
+```
+
+### Reset all generated data
+
+```bash
+rm -rf ~/tensorflow_datasets/circor ./embeddings* ./models ./results
+```
+

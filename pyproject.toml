@@ -29,6 +29,10 @@ tqdm = "^4.6"
 tensorflow = "^2.19"
 tf-keras = "^2.19"
 tensorflow-hub = "^0.16"
+wfdb = "^4.1.0"
+scikit-learn = "^1.3.0"
+google-cloud-storage = "^2.10.0"
+joblib = "^1.3.0"
 
 [tool.poetry.group.jaxtrain]
 optional = true
@@ -45,6 +49,10 @@ scenic = {git = "https://github.com/google-research/scenic.git"}
 ratelimiter = "^1.2.0.post0"
 # Quantization-aware training in Jax.
 aqtp = "^0.5.0"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.2"
 
 [build-system]
 requires = ["poetry-core>=1.5.0"]

@@ -106,6 +106,33 @@ def either(object_a: Any, object_b: Any, return_a: bool) -> Any | None:
   return object_a if return_a else object_b
 
 
+def compute_melspec_shape(
+    num_samples: Any, stride: int, kernel_size: int, num_mels: int
+) -> tuple[Any, int]:
+  """Computes the output shape of a mel spectrogram.
+
+  As documented in chirp.models.frontend.STFT (lines 177-182), the output of
+  chirp.data.pipeline.MelSpectrogram has shape [num_frames, num_channels], and
+  num_frames is computed as:
+
+    (num_samples + stride - (kernel_size % 2)) // stride - correction,
+
+  where correction is 1 if kernel_size is even and 0 otherwise.
+
+  Args:
+    num_samples: Number of audio samples (can be FieldReference).
+    stride: STFT hop length in samples.
+    kernel_size: STFT window length in samples.
+    num_mels: Number of mel frequency bins.
+
+  Returns:
+    Tuple of (num_frames, num_mels) representing the mel spectrogram shape.
+  """
+  odd_kernel = kernel_size % 2
+  num_frames = (num_samples + stride - odd_kernel) // stride + odd_kernel - 1
+  return (num_frames, num_mels)
+
+
 def get_melspec_defaults(config: config_dict.ConfigDict) -> tuple[Any, Any]:
   """Determines the default melspectrogram kernel size and nftt values.
 

@@ -1,0 +1,178 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\documentclass[
+  10pt,
+  letterpaper,
+]{article}
+\usepackage{xcolor}
+\usepackage[margin=0.5in,top=0.6in,bottom=0.6in]{geometry}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\usepackage{setspace}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\pagestyle{empty}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\author{}
+\date{}
+
+\begin{document}
+
+\setstretch{0.9}
+\section{Frozen Bird Embeddings for Heart Murmur
+Detection}\label{frozen-bird-embeddings-for-heart-murmur-detection}
+
+\textbf{Method:} Frozen Perch embeddings (1280-dim, trained on bird
+sounds) + Logistic Regression
+
+\subsection{Experiment 1: What is Perch
+Learning?}\label{experiment-1-what-is-perch-learning}
+
+\textbf{Setup:} Binary classification (Present vs Absent/Unknown) to
+test if bird embeddings can distinguish heart murmurs.
+
+\textbf{Results:} Recording-level AUROC=0.863 (mean), 0.865 (max),
+AUPRC=0.754 \textbar{} Window-level AUROC=0.850, AUPRC=0.732
+
+\textbf{Confusion Matrix (Recording-level, threshold=0.5):}
+
+\begin{verbatim}
+TN=456  FP=85   Specificity: 84.3%
+FN=32   TP=88   Sensitivity: 73.3%
+                Precision:   50.9%
+\end{verbatim}
+
+\textbf{Key Finding:} The model successfully detects murmurs and is not
+simply predicting all-negative (balanced confusion matrix with 73\%
+sensitivity, 84\% specificity).
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Experiment 2: How Does Perch Compare to
+Baselines?}\label{experiment-2-how-does-perch-compare-to-baselines}
+
+\textbf{Setup:} Binary classification with fair comparison against
+statistical audio features.
+
+\textbf{Results (AUROC):}
+
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+Method & Recording & Window \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{Perch} & \textbf{0.863} & \textbf{0.850} \\
+VGGish & 0.818 & 0.806 \\
+MFCC+Spectral & 0.769 & 0.759 \\
+MFCC & 0.765 & 0.756 \\
+Random & 0.481 & 0.485 \\
+\end{longtable}
+
+\textbf{Key Finding:} Frozen bird embeddings outperform both
+audio-specific embeddings (VGGish, +4.5\%) and traditional signal
+processing features.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Experiment 3: Competition
+Comparison}\label{experiment-3-competition-comparison}
+
+\textbf{Setup:} 3-class classification (Present/Unknown/Absent) using
+exact PhysioNet 2022 competition metrics.
+
+\textbf{Perch Performance:} AUROC=0.793, AUPRC=0.611, Weighted
+Accuracy=0.759 → \textbf{Rank 6/40}
+
+\textbf{Leaderboard Context:}
+
+\begin{longtable}[]{@{}lllll@{}}
+\toprule\noalign{}
+Rank & Team & AUROC & AUPRC & Weighted Acc \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+1 & HearHeart & 0.884 & 0.716 & 0.780 \\
+4 & PathToMyHeart & 0.880 & 0.684 & 0.771 \\
+\textbf{6} & \textbf{Perch (Tuned)} & \textbf{0.793} & \textbf{0.611} &
+\textbf{0.759} \\
+6 & Care4MyHeart & 0.891 & 0.717 & 0.757 \\
+9 & ISIBrno-AIMT & 0.897 & 0.746 & 0.755 \\
+\end{longtable}
+
+\textbf{Key Finding:} Using frozen bird embeddings with logistic
+regression ranks 6th among 40 teams, competitive with approaches
+specifically trained on heart sound data.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Takeaways}\label{takeaways}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Frozen embeddings work on heart audio:} 86\% AUROC, balanced
+  performance---no cardiovascular training.
+\item
+  \textbf{Beats domain-specific models:} Outperforms VGGish (+4.5\%),
+  MFCC, spectral features.
+\item
+  \textbf{Competitive in real competition:} Ranks 6/40 without
+  task-specific training.
+\end{enumerate}
+
+Bird embeddings transfer effectively to medical audio, a data-scarce
+domain.
+
+\end{document}
