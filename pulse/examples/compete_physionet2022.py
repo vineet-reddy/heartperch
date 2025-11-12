@@ -84,6 +84,9 @@ def compute_3class_weighted_accuracy(y_true, y_pred):
            (5*(m_PP + m_UP + m_AP) + 3*(m_PU + m_UU + m_AU) + (m_PA + m_UA + m_AA))
   
   Where m_XY = count of (predicted=X, true=Y) for X,Y in {Absent(0), Present(1), Unknown(2)}
+
+  Competition formula to compute weighted accuracy metric score for official murmur entries is linked here: 
+  https://moody-challenge.physionet.org/2022/#scoring
   """
   cm = confusion_matrix(y_true, y_pred, labels=[0, 1, 2])
   
