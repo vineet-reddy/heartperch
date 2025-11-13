@@ -19,3 +19,4 @@
 **Fix:** Update `circor.py` to handle `{patient_id}_{location}_N.wav` patterns
 
 
+### 2. Remove dead continued pretraining code from chirp/train/train_utils.py and chirp/config_utils.py (from last iteration on heartperch).
