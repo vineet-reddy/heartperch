@@ -2,7 +2,7 @@
 
 **Testing whether bird vocalization models transfer to medical audio.**
 
-This is a fork of [Google's Perch](https://github.com/google-research/perch) that evaluates frozen bird vocalization embeddings on heart murmur detection from the [PhysioNet/CinC Challenge 2022](https://moody-challenge.physionet.org/2022/).
+This is a fork of [Google's Perch](https://github.com/google-research/perch) that evaluates frozen bird vocalization embeddings on heart murmur detection from the [George B. Moody PhysioNet Challenge 2022](https://moody-challenge.physionet.org/2022/).
 
 **Result:** Without training on any heart data, Perch ranked **6th out of 40 teams** in the competition, demonstrating strong zero-shot transfer learning to data-scarce medical domains. ([full results](pulse/docs/results/results_summary.pdf))
 
