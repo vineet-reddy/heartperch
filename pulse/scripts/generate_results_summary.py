@@ -138,7 +138,7 @@ Bird embeddings transfer effectively to medical audio, a data-scarce domain.
 
 if __name__ == "__main__":
     results_dir = Path(__file__).parent.parent / "results"
-    output_path = Path(__file__).parent.parent / "docs" / "results_summary.md"
+    output_path = Path(__file__).parent.parent / "docs" / "results" / "results_summary.md"
     
     generate_summary(results_dir, output_path)
 
