@@ -10,7 +10,7 @@ license = "Apache 2.0"
 # they will be installed when using `pip install`.
 # Other dependency groups will not be installed by pip, however.
 # See: https://python-poetry.org/docs/managing-dependencies/#dependency-groups
-python = ">=3.10,<3.12"
+python = ">=3.10,<3.13"
 perch_hoplite = {git = "https://github.com/google-research/perch-hoplite.git"}
 apache-beam = {version = "^2.50.0", extras = ["gcp"]}
 chex = "^0.1.7"
@@ -23,7 +23,7 @@ optax = ">=0.2.3"
 matplotlib = "^3.6.1"
 notebook = "^7.0.4"
 pandas = {version = "^2.1.1", extras=["gcp"]}
-numpy = "^1.24"
+numpy = "^2.0"
 SPARQLWrapper = "^2.0.0"
 tqdm = "^4.6"
 tensorflow = "^2.19"
