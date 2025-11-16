@@ -14,18 +14,19 @@ if [ ! -d ~/tensorflow_datasets/circor ]; then
   poetry run python -m pulse.scripts.build_circor_dataset
 fi
 
+# Clean all old data before starting
+echo "Cleaning all old data..."
+rm -rf ./embeddings_binary ./embeddings_3class ./models ./results ./results_all_models
+
 # Loop through models
 for MODEL_NAME in $MODELS_TO_RUN; do
   echo "Running pipeline for ${MODEL_NAME}..."
-  
-  echo "Cleaning old data..."
-  rm -rf ./embeddings_binary ./embeddings_3class ./models ./results
   
   echo "Extracting binary embeddings with ${MODEL_NAME}..."
   poetry run python -m pulse.inference.embed_heart_dataset \
     --model_name ${MODEL_NAME} \
     --tfds_data_dir ~/tensorflow_datasets \
-    --output_dir ./embeddings_binary \
+    --output_dir ./embeddings_binary/${MODEL_NAME} \
     --batch_size 32
   
   echo "Extracting 3-class embeddings with ${MODEL_NAME}..."
@@ -33,44 +34,40 @@ for MODEL_NAME in $MODELS_TO_RUN; do
     --model_name ${MODEL_NAME} \
     --use_3class \
     --tfds_data_dir ~/tensorflow_datasets \
-    --output_dir ./embeddings_3class \
+    --output_dir ./embeddings_3class/${MODEL_NAME} \
     --batch_size 32
   
   echo "Validating embeddings..."
   poetry run python -m pulse.scripts.validate_embeddings \
-    --embedding_dir ./embeddings_binary
+    --embedding_dir ./embeddings_binary/${MODEL_NAME}
   
   echo "Experiment 1: Training binary classifier..."
   poetry run python -m pulse.train.linear_probe \
     --mode binary \
-    --embedding_dir ./embeddings_binary \
-    --output_dir ./models/linear_probe
+    --embedding_dir ./embeddings_binary/${MODEL_NAME} \
+    --output_dir ./models/${MODEL_NAME}/linear_probe
   
   poetry run python -m pulse.examples.evaluate_linear_probe \
-    --embedding_dir ./embeddings_binary \
-    --model_path ./models/linear_probe/model.joblib \
-    --output_dir ./results
+    --embedding_dir ./embeddings_binary/${MODEL_NAME} \
+    --model_path ./models/${MODEL_NAME}/linear_probe/model.joblib \
+    --output_dir ./results/${MODEL_NAME}
   
   echo "Experiment 2: Comparing against baselines..."
   poetry run python -m pulse.examples.baseline_comparison \
-    --embedding_dir ./embeddings_binary \
+    --embedding_dir ./embeddings_binary/${MODEL_NAME} \
     --tfds_data_dir ~/tensorflow_datasets \
-    --output_dir ./results
+    --output_dir ./results/${MODEL_NAME}
   
   echo "Experiment 3: PhysioNet 2022 competition comparison..."
   poetry run python -m pulse.examples.compete_physionet2022 \
     --use_3class \
-    --embedding_dir ./embeddings_3class \
-    --output_dir ./results
+    --embedding_dir ./embeddings_3class/${MODEL_NAME} \
+    --output_dir ./results/${MODEL_NAME}
   
   # Save results with model name
   mkdir -p ./results_all_models/${MODEL_NAME}
-  cp ./results/metrics.csv ./results_all_models/${MODEL_NAME}/metrics.csv
-  cp ./results/baseline_comparison.csv ./results_all_models/${MODEL_NAME}/baseline_comparison.csv
-  
-  echo "Backing up to GCS..."
-  gsutil -m cp ./embeddings_binary/*.npz gs://seizurepredict-ds005873/data/circor/embeddings_binary/${MODEL_NAME}/ || true
-  gsutil -m cp ./embeddings_3class/*.npz gs://seizurepredict-ds005873/data/circor/embeddings_3class/${MODEL_NAME}/ || true
+  cp ./results/${MODEL_NAME}/metrics.csv ./results_all_models/${MODEL_NAME}/metrics.csv
+  cp ./results/${MODEL_NAME}/baseline_comparison.csv ./results_all_models/${MODEL_NAME}/baseline_comparison.csv
   
   echo "Pipeline complete for ${MODEL_NAME}!"
 done
