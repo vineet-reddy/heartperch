@@ -1,8 +1,12 @@
 # coding=utf-8
-"""Wrapper for Perch 8 model for embedding extraction.
+"""Wrapper for Perch models for embedding extraction.
 
-This module provides a simple interface to load the Perch 8 model and extract
-1280-dimensional embeddings from 5-second audio windows at 32 kHz.
+This module provides a simple interface to load Perch models and extract
+embeddings from 5-second audio windows at 32 kHz. Supports multiple models:
+- perch_8: 1280-dim (Perch 1.0)
+- perch_v2: 1530-dim (Perch 2.0, GPU)
+- perch_v2_cpu: 1530-dim (Perch 2.0, CPU)
+- surfperch: 1280-dim (trained on coral reef sounds)
 """
 
 import numpy as np
@@ -10,36 +14,46 @@ from perch_hoplite.zoo import model_configs
 
 
 class PerchEmbedder:
-  """Wrapper around Perch 8 model for embedding extraction.
+  """Wrapper around Perch models for embedding extraction.
   
-  Perch 8 expects mono audio at 32 kHz in 5-second windows.
-  Outputs 1280-dimensional embedding vectors.
+  All Perch models expect mono audio at 32 kHz in 5-second windows.
+  Embedding dimensions vary by model (detected automatically):
+  - perch_8: 1280-dim
+  - perch_v2/perch_v2_cpu: 1530-dim
+  - surfperch: 1280-dim
   
   Example:
-    embedder = PerchEmbedder()
+    embedder = PerchEmbedder(model_name='perch_v2')
     audio = np.random.randn(160000)  # 5s at 32kHz
-    embedding = embedder.embed(audio)  # Shape: (1280,)
+    embedding = embedder.embed(audio)  # Shape: (1530,) for perch_v2
   """
   
   def __init__(self, model_name: str = 'perch_8'):
-    """Initialize the Perch 8 model.
+    """Initialize the Perch model.
     
     Args:
       model_name: Name of the model to load. Default is 'perch_8'.
+                  Supported: 'perch_8' (1280-dim), 'perch_v2' (1530-dim),
+                  'perch_v2_cpu' (1530-dim), 'surfperch' (1280-dim)
     """
     self.model_name = model_name
     self.sample_rate = 32000
     self.window_size_s = 5.0
     self.expected_samples = int(self.sample_rate * self.window_size_s)
-    self.embedding_dim = 1280
     
     # Load model
     print(f'Loading {model_name} model...')
     self.model = model_configs.load_model_by_name(model_name)
     print(f'Model loaded. Sample rate: {self.model.sample_rate} Hz')
     
+    # Detect embedding dimension
+    test_audio = np.zeros(self.expected_samples, dtype=np.float32)
+    test_output = self.model.embed(test_audio)
+    self.embedding_dim = np.squeeze(test_output.embeddings).shape[0]
+    print(f'Embedding dimension: {self.embedding_dim}')
+    
   def _prepare_audio(self, audio: np.ndarray) -> np.ndarray:
-    """Prepare audio for Perch 8: ensure mono, correct length.
+    """Prepare audio for Perch models: ensure mono, correct length.
     
     Args:
       audio: Audio array of shape (T,) or (1, T). Should be at 32 kHz.
@@ -72,7 +86,7 @@ class PerchEmbedder:
              Will be padded/trimmed to exactly 160000 samples.
       
     Returns:
-      Embedding vector of shape (1280,)
+      Embedding vector of shape (embedding_dim,). Dimension depends on model.
     """
     audio = self._prepare_audio(audio)
     outputs = self.model.embed(audio)
@@ -92,7 +106,7 @@ class PerchEmbedder:
       audio_batch: Batch of audio arrays of shape (B, T) at 32 kHz.
       
     Returns:
-      Embedding matrix of shape (B, 1280)
+      Embedding matrix of shape (B, embedding_dim)
     """
     batch_size = audio_batch.shape[0]
     embeddings = np.zeros((batch_size, self.embedding_dim), dtype=np.float32)

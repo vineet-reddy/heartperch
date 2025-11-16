@@ -1,56 +1,84 @@
 #!/bin/bash
 set -e
 
-echo "Cleaning old data..."
-rm -rf ~/tensorflow_datasets/circor ./embeddings_binary ./embeddings_3class ./models ./results
+# If MODEL_NAME is set, use it. Otherwise run all models.
+if [ -z "$MODEL_NAME" ]; then
+  MODELS_TO_RUN="perch_8 perch_v2 surfperch"
+else
+  MODELS_TO_RUN="$MODEL_NAME"
+fi
 
-echo "Building CirCor dataset..."
-poetry run python -m pulse.scripts.build_circor_dataset
+# Build dataset once (if needed)
+if [ ! -d ~/tensorflow_datasets/circor ]; then
+  echo "Building CirCor dataset..."
+  poetry run python -m pulse.scripts.build_circor_dataset
+fi
 
-echo "Extracting binary embeddings..."
-poetry run python -m pulse.inference.embed_heart_dataset \
-  --tfds_data_dir ~/tensorflow_datasets \
-  --output_dir ./embeddings_binary \
-  --batch_size 32
+# Loop through models
+for MODEL_NAME in $MODELS_TO_RUN; do
+  echo "Running pipeline for ${MODEL_NAME}..."
+  
+  echo "Cleaning old data..."
+  rm -rf ./embeddings_binary ./embeddings_3class ./models ./results
+  
+  echo "Extracting binary embeddings with ${MODEL_NAME}..."
+  poetry run python -m pulse.inference.embed_heart_dataset \
+    --model_name ${MODEL_NAME} \
+    --tfds_data_dir ~/tensorflow_datasets \
+    --output_dir ./embeddings_binary \
+    --batch_size 32
+  
+  echo "Extracting 3-class embeddings with ${MODEL_NAME}..."
+  poetry run python -m pulse.inference.embed_heart_dataset \
+    --model_name ${MODEL_NAME} \
+    --use_3class \
+    --tfds_data_dir ~/tensorflow_datasets \
+    --output_dir ./embeddings_3class \
+    --batch_size 32
+  
+  echo "Validating embeddings..."
+  poetry run python -m pulse.scripts.validate_embeddings \
+    --embedding_dir ./embeddings_binary
+  
+  echo "Experiment 1: Training binary classifier..."
+  poetry run python -m pulse.train.linear_probe \
+    --mode binary \
+    --embedding_dir ./embeddings_binary \
+    --output_dir ./models/linear_probe
+  
+  poetry run python -m pulse.examples.evaluate_linear_probe \
+    --embedding_dir ./embeddings_binary \
+    --model_path ./models/linear_probe/model.joblib \
+    --output_dir ./results
+  
+  echo "Experiment 2: Comparing against baselines..."
+  poetry run python -m pulse.examples.baseline_comparison \
+    --embedding_dir ./embeddings_binary \
+    --tfds_data_dir ~/tensorflow_datasets \
+    --output_dir ./results
+  
+  echo "Experiment 3: PhysioNet 2022 competition comparison..."
+  poetry run python -m pulse.examples.compete_physionet2022 \
+    --use_3class \
+    --embedding_dir ./embeddings_3class \
+    --output_dir ./results
+  
+  # Save results with model name
+  mkdir -p ./results_all_models/${MODEL_NAME}
+  cp ./results/metrics.csv ./results_all_models/${MODEL_NAME}/metrics.csv
+  cp ./results/baseline_comparison.csv ./results_all_models/${MODEL_NAME}/baseline_comparison.csv
+  
+  echo "Backing up to GCS..."
+  gsutil -m cp ./embeddings_binary/*.npz gs://seizurepredict-ds005873/data/circor/embeddings_binary/${MODEL_NAME}/ || true
+  gsutil -m cp ./embeddings_3class/*.npz gs://seizurepredict-ds005873/data/circor/embeddings_3class/${MODEL_NAME}/ || true
+  
+  echo "Pipeline complete for ${MODEL_NAME}!"
+done
 
-echo "Extracting 3-class embeddings..."
-poetry run python -m pulse.inference.embed_heart_dataset \
-  --use_3class \
-  --tfds_data_dir ~/tensorflow_datasets \
-  --output_dir ./embeddings_3class \
-  --batch_size 32
-
-echo "Validating embeddings..."
-poetry run python -m pulse.scripts.validate_embeddings \
-  --embedding_dir ./embeddings_binary
-
-# TODO: Add validation for 3-class embeddings
-
-echo "Experiment 1: Training binary classifier..."
-poetry run python -m pulse.train.linear_probe \
-  --mode binary \
-  --embedding_dir ./embeddings_binary \
-  --output_dir ./models/linear_probe
-
-poetry run python -m pulse.examples.evaluate_linear_probe \
-  --embedding_dir ./embeddings_binary \
-  --model_path ./models/linear_probe/model.joblib \
-  --output_dir ./results
-
-echo "Experiment 2: Comparing against baselines..."
-poetry run python -m pulse.examples.baseline_comparison \
-  --embedding_dir ./embeddings_binary \
-  --tfds_data_dir ~/tensorflow_datasets \
-  --output_dir ./results
-
-echo "Experiment 3: PhysioNet 2022 competition comparison..."
-poetry run python -m pulse.examples.compete_physionet2022 \
-  --use_3class \
-  --embedding_dir ./embeddings_3class \
-  --output_dir ./results
-
-echo "Backing up to GCS..."
-gsutil -m cp ./embeddings_binary/*.npz gs://seizurepredict-ds005873/data/circor/embeddings_binary/
-gsutil -m cp ./embeddings_3class/*.npz gs://seizurepredict-ds005873/data/circor/embeddings_3class/
+# Compare all models if we ran multiple
+if [ $(echo $MODELS_TO_RUN | wc -w) -gt 1 ]; then
+  echo "Comparing all models..."
+  poetry run python -m pulse.scripts.compare_models --results_dir ./results_all_models
+fi
 
 echo "Pipeline complete!"

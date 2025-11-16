@@ -78,6 +78,42 @@ def extract_vggish_features(audio_windows, sr=32000):
   return np.array(features)
 
 
+def extract_beats_features(audio_windows, sr=32000):
+  """Extract BEATs embeddings (SOTA audio event detection).
+  
+  BEATs (Bidirectional Encoder representation from Audio Transformers) is a
+  self-supervised learning framework for audio representation pre-training.
+  Paper: https://arxiv.org/abs/2212.09058
+  HuggingFace: https://huggingface.co/datasets/Bencr/beats-checkpoints
+  """
+  try:
+    from beats_trainer import BEATsFeatureExtractor
+    
+    print('  Loading BEATs model (this may take a moment)...')
+    # Automatically downloads BEATs_iter3_plus_AS2M checkpoint from HuggingFace
+    extractor = BEATsFeatureExtractor()
+    
+    features = []
+    for audio in tqdm(audio_windows, desc='Extracting BEATs', leave=False):
+      # BEATs expects 16kHz audio
+      audio_16k = librosa.resample(audio, orig_sr=sr, target_sr=16000)
+      
+      # Extract features - returns embeddings
+      embedding = extractor.extract_features(audio_16k)
+      features.append(embedding)
+    
+    return np.array(features)
+    
+  except ImportError as e:
+    print(f'  Warning: Could not load BEATs model: {e}')
+    print('  Install with: pip install beats-trainer')
+    print('  (This will automatically download checkpoints from HuggingFace)')
+    return None
+  except Exception as e:
+    print(f'  Warning: Error extracting BEATs features: {e}')
+    return None
+
+
 def load_audio_from_tfds(tfds_data_dir, split, train_fraction=0.8):
   """Load raw audio windows from TFDS using same preprocessing as embeddings."""
   # Get config to use same dataset version as embedding extraction
@@ -242,6 +278,17 @@ def main():
       'segment_ids': perch_val['segment_ids'],
   }
   
+  # Detect Perch model from embedding dimension
+  emb_dim = emb_train['embeddings'].shape[1]
+  perch_model_name = 'Perch'
+  if emb_dim == 1280:
+    perch_model_name = 'Perch (perch_8/surfperch, 1280-dim)'
+  elif emb_dim == 1530:
+    perch_model_name = 'Perch (perch_v2, 1530-dim)'
+  else:
+    perch_model_name = f'Perch ({emb_dim}-dim)'
+  
+  print(f'  Detected: {perch_model_name}')
   print(f'  Train: {len(emb_train["labels"])} samples ({emb_train["labels"].sum()} positive)')
   print(f'  Valid: {len(emb_val["labels"])} samples ({emb_val["labels"].sum()} positive)\n')
   
@@ -285,6 +332,10 @@ def main():
   X_vggish_train = extract_vggish_features(audio_train)
   X_vggish_val = extract_vggish_features(audio_val)
   
+  # Extract BEATs features (optional - may fail if transformers not installed)
+  X_beats_train = extract_beats_features(audio_train)
+  X_beats_val = extract_beats_features(audio_val)
+  
   # Test scaling impact - run best scenario only
   results = []
   
@@ -297,9 +348,11 @@ def main():
   
   print('\nEvaluating baselines (optimal scaling):')
   # Perch unscaled (performs best without scaling)
-  results.append(train_and_evaluate(X_perch_train, y_train, X_perch_val, y_val, val_metadata, 'Perch', scale=False))
-  # General audio pre-training baseline
+  results.append(train_and_evaluate(X_perch_train, y_train, X_perch_val, y_val, val_metadata, perch_model_name, scale=False))
+  # General audio pre-training baselines
   results.append(train_and_evaluate(X_vggish_train, y_train, X_vggish_val, y_val, val_metadata, 'VGGish', scale=False))
+  if X_beats_train is not None:
+    results.append(train_and_evaluate(X_beats_train, y_train, X_beats_val, y_val, val_metadata, 'BEATs', scale=False))
   # Traditional features scaled (helps convergence and performance)
   results.append(train_and_evaluate(X_random_train, y_train, X_random_val, y_val, val_metadata, 'Random', scale=True))
   results.append(train_and_evaluate(X_mfcc_train, y_train, X_mfcc_val, y_val, val_metadata, 'MFCC', scale=True))

@@ -119,7 +119,8 @@ def extract_and_save_embeddings(
 
 
 def main():
-  parser = argparse.ArgumentParser(description='Extract Perch 8 embeddings from CirCor')
+  parser = argparse.ArgumentParser(description='Extract Perch embeddings from CirCor')
+  parser.add_argument('--model_name', default='perch_8')
   parser.add_argument('--tfds_data_dir', default='~/tensorflow_datasets')
   parser.add_argument('--output_dir', default='./embeddings')
   parser.add_argument('--batch_size', type=int, default=32)
@@ -129,12 +130,13 @@ def main():
   args = parser.parse_args()
   
   config = heart_presets.get_heart_base_config()
+  print(f'Model: {args.model_name}')
   print(f'Data: {args.tfds_data_dir}')
   print(f'Output: {args.output_dir}')
   print(f'Labels: {"3-class (Present/Unknown/Absent)" if args.use_3class else "Binary (Present vs Absent/Unknown)"}')
   
   # Initialize embedder
-  embedder = PerchEmbedder(model_name=config.perch_model_name)
+  embedder = PerchEmbedder(model_name=args.model_name)
   
   # Process each split
   for split in args.splits:
