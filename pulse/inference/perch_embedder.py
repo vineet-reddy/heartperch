@@ -11,6 +11,7 @@ embeddings from 5-second audio windows at 32 kHz. Supports multiple models:
 
 import numpy as np
 from perch_hoplite.zoo import model_configs
+from perch_hoplite.zoo import hub
 
 
 class PerchEmbedder:
@@ -43,7 +44,23 @@ class PerchEmbedder:
     
     # Load model
     print(f'Loading {model_name} model...')
-    self.model = model_configs.load_model_by_name(model_name)
+    
+    # Workaround for surfperch: SURFPERCH_SLUG has wrong path
+    # Library has: 'google/surfperch/tensorFlow2/TensorFlow2/1' (incorrect)
+    # Correct path: 'google/surfperch/TensorFlow2/1' (matching TF_HUB_URL)
+    if model_name == 'surfperch':
+      from perch_hoplite.zoo import taxonomy_model_tf
+      # Get the preset config (has correct params but wrong slug)
+      preset_info = model_configs.get_preset_model_config('surfperch')
+      # Fix the slug to use capital TensorFlow2
+      preset_info.model_config.tfhub_path = 'google/surfperch/TensorFlow2/1'
+      # Set tfhub_version to None since version is already in the path
+      preset_info.model_config.tfhub_version = None
+      # Load using from_tfhub (keeps all parameters consistent with other models)
+      self.model = taxonomy_model_tf.TaxonomyModelTF.from_tfhub(preset_info.model_config)
+    else:
+      self.model = model_configs.load_model_by_name(model_name)
+    
     print(f'Model loaded. Sample rate: {self.model.sample_rate} Hz')
     
     # Detect embedding dimension

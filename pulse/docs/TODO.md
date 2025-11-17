@@ -36,3 +36,24 @@
 **Current Workaround:** Files are saved in model-specific folders (e.g., `./embeddings_binary/perch_8/`) so provenance is implicit from path
 
 **Fix:** Save `model_name` field in embedding .npz files in `pulse/inference/embed_heart_dataset.py` (add to `np.savez_compressed()` call)
+
+
+## Upstream Library Issues
+
+### 4. surfperch model path bug in perch_hoplite
+**Status:** Workaround implemented in `pulse/inference/perch_embedder.py`
+
+**Issue:**
+- `perch_hoplite.zoo.model_configs` has incorrect SURFPERCH_SLUG: `'google/surfperch/tensorFlow2/TensorFlow2/1'`
+- Path has duplicate directory names (lowercase then uppercase)
+- When combined with `tfhub_version=1`, creates invalid path: `.../TensorFlow2/1/1`
+- Correct Kaggle path is: `'google/surfperch/TensorFlow2/1'`
+
+**Workaround:** 
+- In `perch_embedder.py`, we patch the config before loading:
+  ```python
+  preset_info.model_config.tfhub_path = 'google/surfperch/TensorFlow2/1'
+  preset_info.model_config.tfhub_version = None  # Already in path
+  ```
+
+**Upstream Fix Needed:** File PR to google-research/perch to fix `perch_hoplite/zoo/hub.py` line defining SURFPERCH_SLUG
