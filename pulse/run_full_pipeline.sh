@@ -3,16 +3,17 @@ set -e
 
 # Usage: ./pulse/run_full_pipeline.sh
 # Flags:
-#   MODEL_NAME=<model>    - run specific model (perch_8, perch_v2, surfperch)
+#   MODEL_NAME=<model>    - run specific model (perch_8, perch_v2_cpu, surfperch)
 #   REBUILD_DATASET=1     - erase and rebuild dataset from scratch
 # Examples: 
 #   MODEL_NAME=perch_8 ./pulse/run_full_pipeline.sh
+#   MODEL_NAME=perch_v2_cpu ./pulse/run_full_pipeline.sh
 #   REBUILD_DATASET=1 ./pulse/run_full_pipeline.sh
 #   REBUILD_DATASET=1 MODEL_NAME=perch_8 ./pulse/run_full_pipeline.sh
 
 # If MODEL_NAME is set, use it. Otherwise run all models.
 if [ -z "$MODEL_NAME" ]; then
-  MODELS_TO_RUN="perch_8 perch_v2 surfperch"
+  MODELS_TO_RUN="perch_8 perch_v2_cpu surfperch"
 else
   MODELS_TO_RUN="$MODEL_NAME"
 fi

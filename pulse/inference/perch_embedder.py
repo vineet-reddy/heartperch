@@ -4,8 +4,8 @@
 This module provides a simple interface to load Perch models and extract
 embeddings from 5-second audio windows at 32 kHz. Supports multiple models:
 - perch_8: 1280-dim (Perch 1.0)
-- perch_v2: 1530-dim (Perch 2.0, GPU)
-- perch_v2_cpu: 1530-dim (Perch 2.0, CPU)
+- perch_v2: 1536-dim (Perch 2.0, GPU - requires CUDA)
+- perch_v2_cpu: 1536-dim (Perch 2.0, CPU-compatible)
 - surfperch: 1280-dim (trained on coral reef sounds)
 """
 
