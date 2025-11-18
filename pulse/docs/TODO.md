@@ -21,12 +21,9 @@
 
 ### 2. Remove dead continued pretraining code from chirp/train/train_utils.py and chirp/config_utils.py (from last iteration on heartperch).
 
-
-
-
 ## Upstream Library Issues
 
-### 4. surfperch model path bug in perch_hoplite
+### 3. surfperch model path bug in perch_hoplite
 **Status:** Workaround implemented in `pulse/inference/perch_embedder.py`
 
 **Issue:**
@@ -43,3 +40,5 @@
   ```
 
 **Upstream Fix Needed:** File PR to google-research/perch to fix `perch_hoplite/zoo/hub.py` line defining SURFPERCH_SLUG
+
+### 4. Fix BEATS loading issue + fix torch, torchaudio to work on TPU installation (see quickstart.md)
