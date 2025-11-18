@@ -169,6 +169,25 @@ def optimize_binary_threshold(y_true, y_prob):
   return best_threshold, best_score, best_stats
 
 
+def grade_overfitting(gap):
+  """Grade overfitting severity based on train-val AUC gap.
+  
+  Best practices thresholds:
+    < 0.05: Normal generalization
+    0.05-0.10: Mild overfitting
+    0.10-0.15: Moderate overfitting
+    >= 0.15: Severe overfitting
+  """
+  if gap < 0.05:
+    return 'OK'
+  elif gap < 0.10:
+    return 'MILD'
+  elif gap < 0.15:
+    return 'MODERATE'
+  else:
+    return 'SEVERE'
+
+
 def load_leaderboard(tsv_path: Path):
   """Load official competition leaderboard."""
   df = pd.read_csv(tsv_path, sep='\t')
@@ -313,8 +332,12 @@ def main():
       print('-'*70)
       print(f"{rank_tuned:4d} | {'Perch (Tuned)':20s} | {results_tuned['valid_auc']:.3f} | {results_tuned['valid_auprc']:.3f} | {results_tuned['weighted_acc']:.3f}  ⬅")
       print('-'*70)
+      gap_default = results_default['train_auc'] - results_default['valid_auc']
+      gap_tuned = results_tuned['train_auc'] - results_tuned['valid_auc']
       print(f"\nDefault: AUROC rank {auroc_rank_default}/{len(lb)}, Competition rank {rank_default}/{len(lb)}")
+      print(f"         Train AUC={results_default['train_auc']:.3f}, Val AUC={results_default['valid_auc']:.3f}, Gap={gap_default:+.3f} ({grade_overfitting(gap_default)})")
       print(f"Tuned:   AUROC rank {auroc_rank_tuned}/{len(lb)}, Competition rank {rank_tuned}/{len(lb)}")
+      print(f"         Train AUC={results_tuned['train_auc']:.3f}, Val AUC={results_tuned['valid_auc']:.3f}, Gap={gap_tuned:+.3f} ({grade_overfitting(gap_tuned)})")
     else:
       rank = (lb['Weighted_Acc'] > opt_w_acc).sum() + 1
       auroc_rank = (lb['AUROC'] > valid_auc).sum() + 1
@@ -341,6 +364,8 @@ def main():
             'description': 'Best discrimination',
             'train_auc': float(results_default['train_auc']),
             'valid_auc': float(results_default['valid_auc']),
+            'overfitting_gap': float(results_default['train_auc'] - results_default['valid_auc']),
+            'overfitting_grade': grade_overfitting(results_default['train_auc'] - results_default['valid_auc']),
             'valid_auprc': float(results_default['valid_auprc']),
             'weighted_acc': float(results_default['weighted_acc']),
             'auroc_rank': (load_leaderboard(Path(args.leaderboard_tsv))['AUROC'] > results_default['valid_auc']).sum() + 1,
@@ -351,6 +376,8 @@ def main():
             'description': 'Best competition score',
             'train_auc': float(results_tuned['train_auc']),
             'valid_auc': float(results_tuned['valid_auc']),
+            'overfitting_gap': float(results_tuned['train_auc'] - results_tuned['valid_auc']),
+            'overfitting_grade': grade_overfitting(results_tuned['train_auc'] - results_tuned['valid_auc']),
             'valid_auprc': float(results_tuned['valid_auprc']),
             'weighted_acc': float(results_tuned['weighted_acc']),
             'auroc_rank': (load_leaderboard(Path(args.leaderboard_tsv))['AUROC'] > results_tuned['valid_auc']).sum() + 1,
@@ -367,6 +394,8 @@ def main():
         'model': 'default',
         'train_auc': float(train_auc),
         'valid_auc': float(valid_auc),
+        'overfitting_gap': float(train_auc - valid_auc),
+        'overfitting_grade': grade_overfitting(train_auc - valid_auc),
         'valid_auprc': float(valid_auprc),
         'weighted_acc': float(opt_w_acc),
         'threshold': float(opt_threshold),
