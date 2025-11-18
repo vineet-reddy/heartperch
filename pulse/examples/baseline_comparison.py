@@ -84,33 +84,51 @@ def extract_beats_features(audio_windows, sr=32000):
   BEATs (Bidirectional Encoder representation from Audio Transformers) is a
   self-supervised learning framework for audio representation pre-training.
   Paper: https://arxiv.org/abs/2212.09058
-  HuggingFace: https://huggingface.co/datasets/Bencr/beats-checkpoints
+  Model: Microsoft BEATs from unilm repository
   """
   try:
-    from beats_trainer import BEATsFeatureExtractor
+    import torch
+    from beats import BEATs, BEATsConfig
     
-    print('  Loading BEATs model (this may take a moment)...')
-    # Automatically downloads BEATs_iter3_plus_AS2M checkpoint from HuggingFace
-    extractor = BEATsFeatureExtractor()
+    print('  Loading Microsoft BEATs model...')
+    # Official Microsoft checkpoint: BEATs_iter3_plus_AS2M (pretrained on AudioSet-2M)
+    checkpoint_url = "https://valle.blob.core.windows.net/share/BEATs/BEATs_iter3_plus_AS2M.pt?sv=2020-08-04&st=2023-03-01T07%3A51%3A05Z&se=2033-03-02T07%3A51%3A00Z&sr=c&sp=rl&sig=QJXmSJG9DbMKf48UDIU1MfzIro8HQOf3sqlNXiflY1I%3D"
+    
+    checkpoint = torch.hub.load_state_dict_from_url(checkpoint_url, map_location='cpu')
+    cfg = BEATsConfig(checkpoint['cfg'])
+    model = BEATs(cfg)
+    model.load_state_dict(checkpoint['model'])
+    
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = model.to(device)
+    model.eval()
     
     features = []
     for audio in tqdm(audio_windows, desc='Extracting BEATs', leave=False):
-      # BEATs expects 16kHz audio
+      # Resample to 16kHz (BEATs requirement)
       audio_16k = librosa.resample(audio, orig_sr=sr, target_sr=16000)
       
-      # Extract features - returns embeddings
-      embedding = extractor.extract_features(audio_16k)
+      # Convert to tensor and add batch dimension
+      audio_tensor = torch.from_numpy(audio_16k).float().unsqueeze(0).to(device)
+      
+      # Extract features
+      with torch.no_grad():
+        embedding = model.extract_features(audio_tensor)[0]
+        # Mean pool over time dimension
+        embedding = embedding.mean(dim=1).squeeze().cpu().numpy()
+      
       features.append(embedding)
     
     return np.array(features)
     
   except ImportError as e:
-    print(f'  Warning: Could not load BEATs model: {e}')
-    print('  Install with: pip install beats-trainer')
-    print('  (This will automatically download checkpoints from HuggingFace)')
+    print(f'  Warning: Could not import BEATs: {e}')
+    print('  Ensure poetry install completed successfully')
     return None
   except Exception as e:
-    print(f'  Warning: Error extracting BEATs features: {e}')
+    print(f'  Warning: BEATs extraction failed: {e}')
+    import traceback
+    traceback.print_exc()
     return None
 
 
