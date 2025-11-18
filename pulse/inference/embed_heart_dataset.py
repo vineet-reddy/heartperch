@@ -113,8 +113,10 @@ def extract_and_save_embeddings(
       recording_ids=np.array(all_recording_ids),
       patient_ids=np.array(all_patient_ids),
       segment_ids=segment_ids_array,
+      model_name=embedder.model_name,
   )
   
+  print(f'  Model: {embedder.model_name}')
   print(f'  Saved: {output_file} ({os.path.getsize(output_file) / 1024**2:.1f} MB)')
 
 

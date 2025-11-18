@@ -296,17 +296,23 @@ def main():
       'segment_ids': perch_val['segment_ids'],
   }
   
-  # Detect Perch model from embedding dimension
-  emb_dim = emb_train['embeddings'].shape[1]
-  perch_model_name = 'Perch'
-  if emb_dim == 1280:
-    perch_model_name = 'Perch (perch_8/surfperch, 1280-dim)'
-  elif emb_dim == 1530:
-    perch_model_name = 'Perch (perch_v2, 1530-dim)'
+  # Get model name from saved embeddings (or fall back to dimension-based detection)
+  if 'model_name' in perch_train:
+    model_name = str(perch_train['model_name'])
+    perch_model_name = f'Perch ({model_name})'
+    print(f'  Model: {model_name}')
   else:
-    perch_model_name = f'Perch ({emb_dim}-dim)'
+    # Fallback: Detect from embedding dimension (for legacy embedding files)
+    emb_dim = emb_train['embeddings'].shape[1]
+    perch_model_name = 'Perch'
+    if emb_dim == 1280:
+      perch_model_name = 'Perch (perch_8/surfperch, 1280-dim)'
+    elif emb_dim == 1530:
+      perch_model_name = 'Perch (perch_v2, 1530-dim)'
+    else:
+      perch_model_name = f'Perch ({emb_dim}-dim)'
+    print(f'  Detected from dimension: {perch_model_name}')
   
-  print(f'  Detected: {perch_model_name}')
   print(f'  Train: {len(emb_train["labels"])} samples ({emb_train["labels"].sum()} positive)')
   print(f'  Valid: {len(emb_val["labels"])} samples ({emb_val["labels"].sum()} positive)\n')
   

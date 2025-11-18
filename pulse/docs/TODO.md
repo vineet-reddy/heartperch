@@ -22,20 +22,6 @@
 ### 2. Remove dead continued pretraining code from chirp/train/train_utils.py and chirp/config_utils.py (from last iteration on heartperch).
 
 
-## Model Provenance Issues
-
-### 3. Embedding files don't store model name
-**Status:** Cosmetic issue, Low Priority
-
-**Issue:**
-- Multiple models can produce same embedding dimensions (e.g., perch_8 and surfperch both output 1280-dim)
-- Embedding .npz files don't save which model generated them
-- Scripts like `baseline_comparison.py` can't determine exact model from embeddings alone
-- Results in ambiguous labels like "Perch (perch_8/surfperch, 1280-dim)" in CSV outputs
-
-**Current Workaround:** Files are saved in model-specific folders (e.g., `./embeddings_binary/perch_8/`) so provenance is implicit from path
-
-**Fix:** Save `model_name` field in embedding .npz files in `pulse/inference/embed_heart_dataset.py` (add to `np.savez_compressed()` call)
 
 
 ## Upstream Library Issues
